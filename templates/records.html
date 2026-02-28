@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}提交记录 - 步数自动提交系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="bi bi-clock-history me-2"></i>提交记录</h4>
+    <div>
+        <button class="btn btn-outline-primary btn-sm" onclick="loadRecords()">
+            <i class="bi bi-arrow-clockwise me-1"></i>刷新
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="recordsTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>账号</th>
+                        <th>步数</th>
+                        <th>状态</th>
+                        <th>响应信息</th>
+                        <th>提交时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in pagination.items %}
+                    <tr>
+                        <td>{{ record.id }}</td>
+                        <td>{{ record.account.phone if record.account else 'Unknown' }}</td>
+                        <td>{{ record.steps }}</td>
+                        <td>
+                            {% if record.status == 'success' %}
+                            <span class="badge bg-success">成功</span>
+                            {% else %}
+                            <span class="badge bg-danger">失败</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted" title="{{ record.message }}">
+                                {{ record.message[:50] }}{% if record.message|length > 50 %}...{% endif %}
+                            </small>
+                        </td>
+                        <td>{{ record.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if record.submitted_at else '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                            暂无提交记录
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    {% if pagination.pages > 1 %}
+    <div class="card-footer">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ pagination.prev_num }}">上一页</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">上一页</span>
+                </li>
+                {% endif %}
+                
+                {% for page_num in pagination.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num == pagination.page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_num }}">{{ page_num }}</a>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ pagination.next_num }}">下一页</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">下一页</span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        <div class="text-center mt-2 text-muted">
+            <small>共 {{ pagination.total }} 条记录，{{ pagination.pages }} 页</small>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 统计信息 -->
+<div class="row g-4 mt-2">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title text-success">
+                    <i class="bi bi-check-circle me-2"></i>成功次数
+                </h5>
+                <p class="display-6 mb-0" id="successCount">-</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title text-danger">
+                    <i class="bi bi-x-circle me-2"></i>失败次数
+                </h5>
+                <p class="display-6 mb-0" id="failedCount">-</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title text-primary">
+                    <i class="bi bi-percent me-2"></i>成功率
+                </h5>
+                <p class="display-6 mb-0" id="successRate">-</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 加载统计信息
+async function loadStats() {
+    try {
+        const response = await fetch('/api/records?per_page=1000');
+        const data = await response.json();
+        
+        const records = data.records || [];
+        const successCount = records.filter(r => r.status === 'success').length;
+        const failedCount = records.filter(r => r.status === 'failed').length;
+        const total = records.length;
+        const successRate = total > 0 ? ((successCount / total) * 100).toFixed(1) + '%' : '0%';
+        
+        document.getElementById('successCount').textContent = successCount;
+        document.getElementById('failedCount').textContent = failedCount;
+        document.getElementById('successRate').textContent = successRate;
+    } catch (error) {
+        console.error('加载统计失败:', error);
+    }
+}
+
+// 刷新记录
+function loadRecords() {
+    location.reload();
+}
+
+// 页面加载时获取统计
+loadStats();
+</script>
+{% endblock %}

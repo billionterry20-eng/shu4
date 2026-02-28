@@ -1,0 +1,344 @@
+{% extends 'base.html' %}
+
+{% block title %}账号管理 - 步数自动提交系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="bi bi-people me-2"></i>账号管理</h4>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAccountModal">
+        <i class="bi bi-plus-lg me-1"></i>添加账号
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>账号</th>
+                        <th>密码</th>
+                        <th>目标步数</th>
+                        <th>定时时间</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for account in accounts %}
+                    <tr data-account-id="{{ account.id }}">
+                        <td>{{ account.id }}</td>
+                        <td class="account-phone">{{ account.phone }}</td>
+                        <td class="account-password">********</td>
+                        <td class="account-steps">{{ account.steps }}</td>
+                        <td class="account-schedule">{{ "%02d:%02d"|format(account.hour, account.minute) }}</td>
+                        <td class="account-status">
+                            {% if account.enabled %}
+                            <span class="badge bg-success">已启用</span>
+                            {% else %}
+                            <span class="badge bg-secondary">已禁用</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ account.created_at.strftime('%Y-%m-%d') if account.created_at else '-' }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editAccount({{ account.id }})">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-success me-1" onclick="manualSubmit({{ account.id }})">
+                                <i class="bi bi-play-fill"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAccount({{ account.id }})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                            暂无账号，请点击右上角添加账号
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 添加账号模态框 -->
+<div class="modal fade" id="addAccountModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加账号</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addAccountForm">
+                    <div class="mb-3">
+                        <label class="form-label">账号 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="phone" placeholder="邮箱或手机号" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">密码 <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" name="password" placeholder="密码" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">目标步数</label>
+                        <input type="number" class="form-control" name="steps" value="89888" min="1" max="100000">
+                        <div class="form-text">建议范围: 10000 - 100000</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">定时提交时间</label>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="input-group">
+                                    <span class="input-group-text">时</span>
+                                    <input type="number" class="form-control" name="hour" value="0" min="0" max="23">
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="input-group">
+                                    <span class="input-group-text">分</span>
+                                    <input type="number" class="form-control" name="minute" value="5" min="0" max="59">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-text">每天北京时间定时执行</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="enabled" checked>
+                            <label class="form-check-label">立即启用</label>
+                        </div>
+                    </div>
+                    <div class="accordion" id="advancedSettings">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#advancedCollapse">
+                                    高级设置
+                                </button>
+                            </h2>
+                            <div id="advancedCollapse" class="accordion-collapse collapse" data-bs-parent="#advancedSettings">
+                                <div class="accordion-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Authorization Token</label>
+                                        <input type="text" class="form-control" name="auth_token" value="5aa77abb20f11a5e7f2440747a655a55">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Time Token</label>
+                                        <input type="text" class="form-control" name="time_token" value="1772274234275">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitAddAccount()">添加</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑账号模态框 -->
+<div class="modal fade" id="editAccountModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">编辑账号</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editAccountForm">
+                    <input type="hidden" name="account_id">
+                    <div class="mb-3">
+                        <label class="form-label">账号</label>
+                        <input type="text" class="form-control" name="phone" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">密码</label>
+                        <input type="password" class="form-control" name="password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">目标步数</label>
+                        <input type="number" class="form-control" name="steps" min="1" max="100000">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">定时提交时间</label>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="input-group">
+                                    <span class="input-group-text">时</span>
+                                    <input type="number" class="form-control" name="hour" min="0" max="23">
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="input-group">
+                                    <span class="input-group-text">分</span>
+                                    <input type="number" class="form-control" name="minute" min="0" max="59">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="enabled">
+                            <label class="form-check-label">启用账号</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditAccount()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let accountsData = {{ accounts|tojson }};
+
+// 添加账号
+async function submitAddAccount() {
+    const form = document.getElementById('addAccountForm');
+    const formData = new FormData(form);
+    
+    const data = {
+        phone: formData.get('phone'),
+        password: formData.get('password'),
+        steps: parseInt(formData.get('steps')),
+        hour: parseInt(formData.get('hour')),
+        minute: parseInt(formData.get('minute')),
+        enabled: formData.get('enabled') === 'on',
+        auth_token: formData.get('auth_token'),
+        time_token: formData.get('time_token')
+    };
+    
+    try {
+        const response = await fetch('/api/accounts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('账号添加成功', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('addAccountModal')).hide();
+            form.reset();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(result.message, 'error');
+        }
+    } catch (error) {
+        showToast('请求失败: ' + error.message, 'error');
+    }
+}
+
+// 编辑账号
+function editAccount(accountId) {
+    const account = accountsData.find(a => a.id === accountId);
+    if (!account) return;
+    
+    const form = document.getElementById('editAccountForm');
+    form.account_id.value = accountId;
+    form.phone.value = account.phone;
+    form.password.value = '';  // 密码不显示
+    form.steps.value = account.steps;
+    form.hour.value = account.hour;
+    form.minute.value = account.minute;
+    form.enabled.checked = account.enabled;
+    
+    new bootstrap.Modal(document.getElementById('editAccountModal')).show();
+}
+
+// 提交编辑
+async function submitEditAccount() {
+    const form = document.getElementById('editAccountForm');
+    const accountId = form.account_id.value;
+    
+    const data = {
+        phone: form.phone.value,
+        password: form.password.value,
+        steps: parseInt(form.steps.value),
+        hour: parseInt(form.hour.value),
+        minute: parseInt(form.minute.value),
+        enabled: form.enabled.checked
+    };
+    
+    try {
+        const response = await fetch(`/api/accounts/${accountId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('账号更新成功', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('editAccountModal')).hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(result.message, 'error');
+        }
+    } catch (error) {
+        showToast('请求失败: ' + error.message, 'error');
+    }
+}
+
+// 删除账号
+async function deleteAccount(accountId) {
+    if (!confirm('确定要删除这个账号吗？此操作不可恢复。')) return;
+    
+    try {
+        const response = await fetch(`/api/accounts/${accountId}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('账号删除成功', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(result.message, 'error');
+        }
+    } catch (error) {
+        showToast('请求失败: ' + error.message, 'error');
+    }
+}
+
+// 手动提交
+async function manualSubmit(accountId) {
+    if (!confirm('确定要立即提交步数吗？')) return;
+    
+    try {
+        const response = await fetch(`/api/accounts/${accountId}/submit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast(result.message, 'success');
+        } else {
+            showToast(result.message, 'error');
+        }
+    } catch (error) {
+        showToast('请求失败: ' + error.message, 'error');
+    }
+}
+</script>
+{% endblock %}
